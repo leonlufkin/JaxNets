@@ -1,0 +1,34 @@
+name: jaxnets
+
+channels:
+  - default
+  - conda-forge
+
+dependencies:
+  - python>=3.11
+  - ipython
+  - ipykernel
+  - pre-commit
+
+  - numpy
+  - optax
+  - equinox
+  - pandas>=2.0
+  - pytables
+  - submitit
+  - matplotlib
+  - ipdb
+
+  - nvidia::cudatoolkit
+  - nvidia::cuda>=12.0
+
+  - pytorch::pytorch-cuda>=12.0
+  - pytorch::pytorch
+
+  - nvidia::cuda-nvcc>=12.0
+  - conda-forge::jaxlib=*=*cuda*
+  - conda-forge::jax
+
+  - pip
+  - pip:
+      - -e .
