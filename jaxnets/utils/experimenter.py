@@ -24,7 +24,7 @@ import ipdb
 
 def load_model(
   *, 
-  save_dir : Callable = lambda: '../results' if gethostname() == 'Leons-MBP' else '/scratch/gpfs/ll4476/results',
+  save_dir : Callable = lambda: '../results' if gethostname() == 'Leons-MBP' else '/ceph/scratch/leonl',
   config_modifier : Callable | None = None, 
   **config
 ):
@@ -59,7 +59,7 @@ def load_model(
 
 def load(
   *,
-  save_dir : Callable = lambda: '../results' if gethostname() == 'Leons-MBP' else '/scratch/gpfs/ll4476/results',
+  save_dir : Callable = lambda: '../results' if gethostname() == 'Leons-MBP' else '/ceph/scratch/leonl',
   **config
 ):
   """
