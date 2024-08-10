@@ -12,7 +12,6 @@ from collections.abc import Sequence
 from collections.abc import Generator
 
 import equinox as eqx
-from counting import datasets, models
 from socket import gethostname
 import os
 
