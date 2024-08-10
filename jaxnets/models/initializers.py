@@ -17,7 +17,8 @@ import ipdb
 def trunc_normal_init(
   weight: Array, 
   key: Array, 
-  init_scale: float | None = None
+  init_scale: float | None = None,
+  **kwargs,
 ) -> Array:
   """Truncated normal distribution initialization."""
   _, in_ = weight.shape
@@ -34,6 +35,7 @@ def lecun_normal_init(
   weight: Array,
   key: Array,
   init_scale: float = 1.0,
+  **kwargs,
 ) -> Array:
   """LeCun (variance-scaling) normal distribution initialization."""
   _, in_ = weight.shape
@@ -51,6 +53,7 @@ def xavier_normal_init(
   weight: Array,
   key: Array,
   init_scale: float = 1.0,
+  **kwargs,
 ) -> Array:
   xavier = jax.nn.initializers.glorot_normal()
   stddev = np.sqrt(init_scale)

@@ -1,5 +1,5 @@
 from jaxnets.models.initializers import trunc_normal_init, lecun_normal_init, xavier_normal_init
-from jaxnets.models.feedforward import Linear, MLP, SCM, GatedNet
+from jaxnets.models.feedforward import StopGradient, Linear, MLP, SCM, GatedNet
 
 __all__ = (
     # initializers.py
@@ -7,6 +7,7 @@ __all__ = (
     "lecun_normal_init",
     "xavier_normal_init",
     # feedforward.py
+    "StopGradient",
     "Linear",
     "MLP",
     "SCM",

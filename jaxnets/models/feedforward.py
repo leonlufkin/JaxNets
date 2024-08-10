@@ -28,10 +28,13 @@ class StopGradient(eqx.Module):
 class Linear(enn.Linear):
   """Linear layer."""
 
+  weight: Array
+  bias: Array
+
   def __init__(
     self,
-    in_features: int,
-    out_features: int,
+    in_size: int,
+    out_size: int,
     use_bias: bool = True,
     weight_trainable: bool = True,
     bias_value: float = 0.0,
@@ -43,8 +46,8 @@ class Linear(enn.Linear):
   ):
     """Initialize a linear layer."""
     super().__init__(
-      in_features=in_features,
-      out_features=out_features,
+      in_features=in_size,
+      out_features=out_size,
       use_bias=use_bias,
       key=key,
     )
@@ -66,16 +69,16 @@ class MLP(eqx.Module):
   """Multi-layer perceptron."""
 
   fc1: eqx.Module
-  act: Callable
+  activation: Callable
   fc2: eqx.Module
   num_hiddens: int
 
   def __init__(
     self,
-    in_features: int,
-    hidden_features: int | None = None,
-    out_features: int | None = 1,
-    act: Callable = lambda x: x,
+    in_size: int,
+    hidden_size: int | None = None,
+    out_size: int | None = 1,
+    activation: Callable = lambda x: x,
     *,
     key: Array = None,
     init_fn: Callable = xavier_normal_init,
@@ -84,40 +87,40 @@ class MLP(eqx.Module):
     """Initialize an MLP.
 
     Args:
-       in_features: The expected dimension of the input.
-       hidden_features: Dimensionality of the hidden layer.
-       out_features: The dimension of the output feature.
-       act: Activation function to be applied to the intermediate layers.
+       in_size: The expected dimension of the input.
+       hidden_size: Dimensionality of the hidden layer.
+       out_size: The dimension of the output feature.
+       activation: Activation function to be applied to the intermediate layers.
        drop: The probability associated with `Dropout`.
        key: A `jax.random.PRNGKey` used to provide randomness for parameter
         initialisation.
        init_scale: The scale of the variance of the initial weights.
     """
     super().__init__()
-    out_features = out_features or in_features
-    hidden_features = hidden_features or in_features
+    out_size = out_size or in_size
+    hidden_size = hidden_size or in_size
     key1, key2 = jrandom.split(key, 2)
 
     self.fc1 = Linear(
-      in_features=in_features,
-      out_features=hidden_features,
+      in_size=in_size,
+      out_size=hidden_size,
       key=key1,
       init_fn=init_fn,
       **linear_kwargs,
     )
-    self.act = act
+    self.activation = activation
     self.fc2 = Linear(
-      in_features=hidden_features,
-      out_features=out_features,
+      in_size=hidden_size,
+      out_size=out_size,
       key=key2,
       init_fn=init_fn,
       **linear_kwargs,
     )
-    self.num_hiddens = hidden_features
+    self.num_hiddens = hidden_size
 
   def forward_pass(self, x: Array, *, key: Array) -> Array:
     preact = self.fc1(x)
-    x = self.act(preact)
+    x = self.activation(preact)
     x = self.fc2(x) / self.num_hiddens
     return x, preact
 
@@ -132,13 +135,13 @@ class SCM(eqx.Module):
   """
 
   fc1: eqx.Module
-  act: Callable
+  activation: Callable
 
   def __init__(
     self,
-    in_features: int,
-    hidden_features: int | None = None,
-    act: Callable = lambda x: x,
+    in_size: int,
+    hidden_size: int | None = None,
+    activation: Callable = lambda x: x,
     *,
     key: Array = None,
     init_fn: Callable = xavier_normal_init,
@@ -147,33 +150,33 @@ class SCM(eqx.Module):
     """Initialize an SCM.
 
     Args:
-       in_features: The expected dimension of the input.
-       hidden_features: Dimensionality of the hidden layer.
-       out_features: The dimension of the output feature.
-       act: Activation function to be applied to the intermediate layers.
-       drop: The probability associated with `Dropout`.
-       key: A `jax.random.PRNGKey` used to provide randomness for parameter
-        initialisation.
-       init_scale: The scale of the variance of the initial weights.
+      in_size: The expected dimension of the input.
+      hidden_size: Dimensionality of the hidden layer.
+      out_size: The dimension of the output feature.
+      activation: Activation function to be applied to the intermediate layers.
+      drop: The probability associated with `Dropout`.
+      key: A `jax.random.PRNGKey` used to provide randomness for parameter
+      initialisation.
+      init_scale: The scale of the variance of the initial weights.
     """
     super().__init__()
-    hidden_features = hidden_features or in_features
+    hidden_size = hidden_size or in_size
+    linear_kwargs.pop('out_size')
 
     self.fc1 = Linear(
-      in_features=in_features,
-      out_features=hidden_features,
+      in_size=in_size,
+      out_size=hidden_size,
       key=key,
       init_fn=init_fn,
       **linear_kwargs # TODO: try use_bias = False
     ) 
-    self.act = act
+    self.activation = activation
 
   def forward_pass(self, x: Array, *, key: Array) -> Array:
     """Apply the MLP block to the input."""
     preact = self.fc1(x) # first layer
-    x = self.act(preact)
+    x = self.activation(preact)
     x = jnp.mean(x) # second layer
-
     return x, preact
 
   def __call__(self, x: Array, *, key: Array) -> Array:
@@ -190,8 +193,8 @@ class GatedNet(eqx.Module):
 
   def __init__(
     self,
-    in_features: int,
-    hidden_features: int | None = None,
+    in_size: int,
+    hidden_size: int | None = None,
     gate: Callable = lambda x: 1.,
     *,
     key: Array = None,
@@ -201,10 +204,10 @@ class GatedNet(eqx.Module):
     """Initialize a GatedNet, but an SCM for now.
 
     Args:
-       in_features: The expected dimension of the input.
-       hidden_features: Dimensionality of the hidden layer.
-       out_features: The dimension of the output feature.
-       act: Gating function to be applied to the intermediate layer.
+       in_size: The expected dimension of the input.
+       hidden_size: Dimensionality of the hidden layer.
+       out_size: The dimension of the output feature.
+       activation: Gating function to be applied to the intermediate layer.
             Given input x, returns a vector of gates for all the intermediate neurons.
        drop: The probability associated with `Dropout`.
        key: A `jax.random.PRNGKey` used to provide randomness for parameter
@@ -212,13 +215,13 @@ class GatedNet(eqx.Module):
        init_scale: The scale of the variance of the initial weights.
     """
     super().__init__()
-    hidden_features = hidden_features or in_features
+    hidden_size = hidden_size or in_size
     
     Warning("GatedNet is currently just an SCM with a gating function.")
 
     self.fc1 = Linear(
-      in_features=in_features,
-      out_features=hidden_features,
+      in_size=in_size,
+      out_size=hidden_size,
       key=key,
       init_fn=init_fn,
       **linear_kwargs # TODO: try use_bias = False

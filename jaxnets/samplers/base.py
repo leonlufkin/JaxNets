@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from typing_extensions import Protocol
 from jax import Array
 # from nets.datasets.base import ExemplarType
-from localization.datasets.base import ExemplarType
+from jaxnets.datasets.base import ExemplarType
 
 from enum import Enum
 from enum import unique
@@ -17,7 +17,7 @@ import jax
 from jax import numpy as jnp
 from jax import nn as jnn
 
-from localization.datasets import Dataset
+from jaxnets.datasets import Dataset
 
 # The initial number of sequences to instantiate within an infinite `Sampler`.
 # Changing this parameter impacts PRNGs for sequence sampling.
@@ -153,11 +153,6 @@ def generate_sequence(
 class Sampler(Sequence):
   """Sampler of sequences drawn from a `nets.datasets.Dataset`."""
 
-
-class SingletonSampler(Sampler):
-  """Sampler of a sequence of examples."""
-
-
 # TODO(eringrant): Is this faster than a recursive call to `__getitem__`?
 def slice_to_array(s: slice, array_length: int) -> Array:
   """Convert a `slice` object to an array of indices."""
@@ -168,6 +163,9 @@ def slice_to_array(s: slice, array_length: int) -> Array:
   return jnp.array(range(start, stop, step))
 
 
+class SingletonSampler(Sampler):
+  """Sampler of a sequence of examples."""
+
 class EpochSampler(SingletonSampler):
   """Sampler of example-label pairs over multiple epochs."""
 
@@ -176,6 +174,7 @@ class EpochSampler(SingletonSampler):
     key: Array,
     dataset: Dataset,
     num_epochs: int | None = None,
+    **kwargs,
   ):
     """Sampler of example-label pairs over multiple epochs."""
     self.key = key
@@ -225,6 +224,29 @@ class EpochSampler(SingletonSampler):
 
     return self.dataset[permuted_index]
 
+
+class DistributionSampler(Sampler):
+  """Sampler of a distribution of examples."""
+
+class DirectSampler(DistributionSampler):
+  """Sampler of a direct distribution of examples."""
+
+  def __init__(
+    self,
+    dataset: Dataset,
+    **kwargs,
+  ):
+    """Sampler of example-label pairs over multiple epochs."""
+    self.dataset = dataset
+
+  def __len__(self) -> int:
+    """Return the number of example-label pairs in `Sampler`."""
+    return len(self.dataset)
+
+  def __getitem__(self, index: int | slice) -> ExemplarType:
+    """Return exemplar-class pairs at index `index` of `Sampler`."""
+    return self.dataset[index]
+  
 
 class SequenceSampler(Sampler):
   """Sampler of context + query sequences for in-context learning."""

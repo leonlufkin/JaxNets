@@ -59,7 +59,7 @@ class Dataset:
     self.num_exemplars = num_exemplars
     self.num_dimensions = num_dimensions
     self.sequence_length = sequence_length
-
+  
   def __len__(self) -> int:
     """Number of exemplars in this `Dataset`."""
     return int(self.num_exemplars) # len(self._exemplars)

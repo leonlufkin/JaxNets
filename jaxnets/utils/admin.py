@@ -10,6 +10,7 @@ from collections.abc import Callable
 from collections.abc import Mapping
 from collections.abc import Sequence
 from collections.abc import Generator
+from jax import Array
 
 import math
 
@@ -126,15 +127,18 @@ class Ignore:
   
 
 def make_key(
-  remove_keys: list = [],
+  *,
+  remove_keys: list = ['wandb_', 'save_weights', 'save_model', 'task', 'config_modifier'],
   remove_none: bool = True,
   remove_dict: bool = True,
-  key_prefixes: list = ['num_'],
-  key_suffixes: list = ['_cls', '_fn'],
-  value_prefixes: list = [],
-  value_suffixes: list = ['_init'],
-  config: dict = {}
+  key_prefixes: list = ['num_', 'use_'],
+  key_suffixes: list = ['_cls', '_fn', '_size'],
+  value_prefixes: list = ['simulate_'],
+  value_suffixes: list = ['_init', 'Sampler'],
+  config: dict = {},
 ):
+  # make a copy of the config
+  config = config.copy()
   # remove specific unwanted keys
   for k in remove_keys:
     if k in config:
@@ -152,6 +156,10 @@ def make_key(
   # get __name__ of classes and functions
   for k, v in config.items():
     config[k] = getattr(v, '__name__', v)
+  # collapse all tuple/list/array values to strings
+  for k, v in config.items():
+    if isinstance(v, (tuple, list, Array)):
+      config[k] = ','.join([str(x) for x in v])
   # coerce all values to strings
   config = { k: str(v) for k, v in config.items() }
   # remove affixes from keys and values
@@ -172,6 +180,8 @@ def make_key(
         config[k[:-len(p)]] = config.pop(k)
   # shorten keys to just first 3 characters in between each _
   config = { ''.join([x[:3] for x in k.split('_')]) : v for k, v in config.items() }
+  # remove _ from values
+  config = { k: v.replace('_', '') for k, v in config.items() }
   # make key, sorted alphabetically
   key = '_'.join([ f'{key}={value}' for key, value in sorted(config.items())])
   # strip all whitespace
