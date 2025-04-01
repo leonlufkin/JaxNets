@@ -11,7 +11,6 @@ import equinox.nn as enn
 
 from jax import Array
 from collections.abc import Callable
-import ipdb
 
 
 def trunc_normal_init(
