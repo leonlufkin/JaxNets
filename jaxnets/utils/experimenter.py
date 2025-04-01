@@ -17,8 +17,6 @@ import os
 
 from jaxnets.utils.admin import make_key
 
-import ipdb
-
 ##########
 ## LOADING
 
