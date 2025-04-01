@@ -14,8 +14,6 @@ from jax import Array
 
 import math
 
-import ipdb
-
 class Ignore:
   def __init__(self, value):
     self._value = value
@@ -212,5 +210,5 @@ if __name__ == '__main__':
   print( x + 3 ) # 5 
   print( isinstance(x, Ignore) ) # True
   print( isinstance(x, int) ) # True
-  ipdb.set_trace()
+  breakpoint()
   x.abc # Should see: AttributeError: 'int' object has no attribute 'abc'

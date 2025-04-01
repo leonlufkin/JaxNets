@@ -15,8 +15,6 @@ from jax import Array
 import jax
 import jax.numpy as jnp
 
-import ipdb
-
 
 
 def accuracy(pred_y: Array, y: Array) -> Array:
