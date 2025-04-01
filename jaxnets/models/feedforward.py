@@ -4,7 +4,7 @@ from math import sqrt
 
 import jax
 import jax.numpy as jnp
-import jax.random as jrandom
+import jax.random as jr
 
 import equinox as eqx
 import equinox.nn as enn
@@ -64,8 +64,19 @@ class Linear(enn.Linear):
       if not bias_trainable:
         self.bias = StopGradient(self.bias)
 
+class Net(eqx.Module):
+  """Abstract base class for neural network."""
+  
+  def __init__(self):
+    pass
+  
+  def forward_pass(self, x: Array, *, key: Array) -> Array:
+    pass
+  
+  def __call__(self, x: Array, *, key: Array) -> Array:
+    return self.forward_pass(x, key=key)[0]
 
-class MLP(eqx.Module):
+class MLP(Net):
   """Multi-layer perceptron."""
 
   fc1: eqx.Module
@@ -99,7 +110,7 @@ class MLP(eqx.Module):
     super().__init__()
     out_size = out_size or in_size
     hidden_size = hidden_size or in_size
-    key1, key2 = jrandom.split(key, 2)
+    key1, key2 = jr.split(key, 2)
 
     self.fc1 = Linear(
       in_size=in_size,
@@ -124,11 +135,8 @@ class MLP(eqx.Module):
     x = self.fc2(x) / self.num_hiddens
     return x, preact
 
-  def __call__(self, x: Array, *, key: Array) -> Array:
-    return self.forward_pass(x, key=key)[0]
 
-
-class SCM(eqx.Module):
+class SCM(Net):
   """
   Soft-Committee Machine, i.e. a two-layer MLP with second layer weights fixed so they take the average. 
   By construction, the SCM has 1D output.
@@ -179,23 +187,20 @@ class SCM(eqx.Module):
     x = jnp.mean(x) # second layer
     return x, preact
 
-  def __call__(self, x: Array, *, key: Array) -> Array:
-    return self.forward_pass(x, key=key)[0]
 
-
-class GatedNet(eqx.Module):
+class GatedNet(Net):
   """
   SCM, but rather than an activation, we apply a gating function.
   """
 
-  fc1: eqx.Module
+  layer_sizes: list[int]
   gate: Callable
+  layers: list[eqx.Module]
 
   def __init__(
     self,
-    in_size: int,
-    hidden_size: int | None = None,
-    gate: Callable = lambda x: 1.,
+    layer_sizes: list[int],
+    gates: list[Callable],
     *,
     key: Array = None,
     init_fn: Callable = xavier_normal_init,
@@ -204,38 +209,47 @@ class GatedNet(eqx.Module):
     """Initialize a GatedNet, but an SCM for now.
 
     Args:
-       in_size: The expected dimension of the input.
-       hidden_size: Dimensionality of the hidden layer.
-       out_size: The dimension of the output feature.
-       activation: Gating function to be applied to the intermediate layer.
-            Given input x, returns a vector of gates for all the intermediate neurons.
-       drop: The probability associated with `Dropout`.
-       key: A `jax.random.PRNGKey` used to provide randomness for parameter
-        initialisation.
-       init_scale: The scale of the variance of the initial weights.
+      in_size: The expected dimension of the input.
+      hidden_size: Dimensionality of the hidden layer.
+      out_size: The dimension of the output feature.
+      activation: Gating function to be applied to the intermediate layer.
+          Given input x, returns a vector of gates for all the intermediate neurons.
+      drop: The probability associated with `Dropout`.
+      key: A `jax.random.PRNGKey` used to provide randomness for parameter
+      initialisation.
+      init_scale: The scale of the variance of the initial weights.
     """
     super().__init__()
-    hidden_size = hidden_size or in_size
-    
-    Warning("GatedNet is currently just an SCM with a gating function.")
 
-    self.fc1 = Linear(
-      in_size=in_size,
-      out_size=hidden_size,
-      key=key,
-      init_fn=init_fn,
-      **linear_kwargs # TODO: try use_bias = False
-    ) 
-    self.gate = gate
+    self.num_layers = len(layer_sizes) - 1
+    assert len(gates) == self.num_layers, "List of layers and gates must have equal depth."
 
+    self.layers = [
+      Linear(
+        in_size=in_size,
+        out_size=out_size,
+        key=jr.fold_in(key, i),
+        init_fn=init_fn,
+        **linear_kwargs,
+      )
+      for i, (in_size, out_size) in enumerate(zip(layer_sizes[:-1], layer_sizes[1:]))
+    ]
+    self.gates = gates
 
   def forward_pass(self, x: Array, *, key: Array) -> Array:
     """Apply the MLP block to the input."""
+    preacts, gates = [], []
+    for i in range(self.num_layers):
+      preacts.append(x)
+      g = self.gates[i](x) if self.gates[i] else None
+      gates.append(g)
+      
+      x = self.layer[i](x)
+    
     preacts = self.fc1(x)
     gates = self.gate(x)
     postacts = gates * preacts
     x = jnp.mean(postacts)
     return x, preacts, gates, postacts
   
-  def __call__(self, x: Array, *, key: Array) -> Array:
-    return self.forward_pass(x, key=key)[0]
+  

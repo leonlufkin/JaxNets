@@ -7,6 +7,7 @@ from jaxnets.utils.metrics import accuracy, mse, ce
 from jaxnets.utils.pull_recent_hpc import pull_recent_hpc
 from jaxnets.utils.sweeper import tupify, sweep_func
 from jaxnets.utils.submit import submit_jobs, product_kwargs
+from jaxnets.datasets.base import slice_to_array
 # from jaxnets.utils.visualization import 
 
 __all__ = (
@@ -22,4 +23,6 @@ __all__ = (
   "pull_recent_hpc",
   # submit.py
   "submit_jobs", "product_kwargs",
+  # datasets.base.py
+  "slice_to_array",
 )

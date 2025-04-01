@@ -129,12 +129,12 @@ class Ignore:
 def make_key(
   *,
   remove_keys: list = ['wandb_', 'save_weights', 'save_model', 'task', 'config_modifier'],
-  remove_none: bool = True,
-  remove_dict: bool = True,
-  key_prefixes: list = ['num_', 'use_'],
-  key_suffixes: list = ['_cls', '_fn', '_size'],
-  value_prefixes: list = ['simulate_'],
-  value_suffixes: list = ['_init', 'Sampler'],
+  remove_nones: bool = True,
+  remove_dicts: bool = True,
+  strip_key_prefixes: list = ['num_', 'use_'],
+  strip_key_suffixes: list = ['_cls', '_fn', '_size'],
+  strip_value_prefixes: list = ['simulate_'],
+  strip_value_suffixes: list = ['_init', 'Sampler', 'Dataset'],
   config: dict = {},
 ):
   # make a copy of the config
@@ -144,12 +144,12 @@ def make_key(
     if k in config:
       config.pop(k)
   # remove keys with None values, if desired
-  if remove_none:
+  if remove_nones:
     for k in list(config.keys()):
       if config[k] is None:
         config.pop(k)
   # remove keys where the value is a dict, if desired
-  if remove_dict:
+  if remove_dicts:
     for k in list(config.keys()):
       if isinstance(config[k], dict):
         config.pop(k)
@@ -158,24 +158,31 @@ def make_key(
     config[k] = getattr(v, '__name__', v)
   # collapse all tuple/list/array values to strings
   for k, v in config.items():
+    # collapse or compress arrays
     if isinstance(v, (tuple, list, Array)):
-      config[k] = ','.join([str(x) for x in v])
+      if len(v) < 5:
+        config[k] = ','.join([str(x) for x in v]) # separate *all* values with commas
+      else:
+        config[k] = str(v[0]) + (',' + str(v[-1]) if len(v) > 1 else '') # just *first and last* values
+    # compress slices
+    if isinstance(v, slice):
+      config[k] = f"{'' if v.start is None else v.start}:{'' if v.step is None else v.step}:{'' if v.stop is None else v.stop}"
   # coerce all values to strings
   config = { k: str(v) for k, v in config.items() }
   # remove affixes from keys and values
   for k, v in config.copy().items():
     # values
-    for p in value_prefixes:
+    for p in strip_value_prefixes:
       if v.startswith(p):
         config[k] = v[len(p):]
-    for p in value_suffixes:
+    for p in strip_value_suffixes:
       if v.endswith(p):
         config[k] = v[:-len(p)]
     # keys
-    for p in key_prefixes:
+    for p in strip_key_prefixes:
       if k.startswith(p):
         config[k[len(p):]] = config.pop(k)
-    for p in key_suffixes:
+    for p in strip_key_suffixes:
       if k.endswith(p):
         config[k[:-len(p)]] = config.pop(k)
   # shorten keys to just first 3 characters in between each _
@@ -186,7 +193,7 @@ def make_key(
   key = '_'.join([ f'{key}={value}' for key, value in sorted(config.items())])
   # strip all whitespace
   key = key.replace(' ', '')
-  return key
+  return key, config
 
 
 if __name__ == '__main__':
